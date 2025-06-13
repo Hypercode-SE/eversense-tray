@@ -1,4 +1,5 @@
 import datetime
+import logging
 import sqlite3
 import threading
 
@@ -9,6 +10,7 @@ class GlucoseDB:
 
         self._init_tables()
         self.lock = threading.Lock()
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def _init_tables(self):
         with sqlite3.connect(self.db_file) as conn:
@@ -27,7 +29,7 @@ class GlucoseDB:
                 try:
                     conn.execute("INSERT OR IGNORE INTO glucose (timestamp, glucose) VALUES (?, ?)", (ts, glucose))
                 except Exception as e:
-                    print(f"[DB] Insert error {e} for {ts} {glucose}")
+                    self.logger.error(f"[DB] Insert error {e} for {ts} {glucose}")
 
     def get_last_24h(self):
         cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24)

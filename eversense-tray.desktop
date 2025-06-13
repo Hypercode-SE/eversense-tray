@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Eversense Tray
+Exec=/usr/local/bin/eversense-tray
+X-GNOME-Autostart-enabled=true

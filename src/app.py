@@ -1,11 +1,13 @@
 import configparser
 import datetime
+import logging
 import math
 import random
 import sys
 import threading
 import time
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from PIL import Image, ImageDraw
 
@@ -24,9 +26,27 @@ gi.require_version('Gtk', '3.0')
 gi.require_version('AppIndicator3', '0.1')
 from gi.repository import Gtk, GLib, AppIndicator3, GdkPixbuf  # type: ignore
 
+CONFIG_DIR = Path.home() / ".config" / "eversense-tray"
+
+LOG_DIR = CONFIG_DIR / "logs"
+
+if not CONFIG_DIR.exists():
+    CONFIG_DIR.mkdir(parents=True)
+
+if not LOG_DIR.exists():
+    LOG_DIR.mkdir(parents=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # Format log messages
+    handlers=[
+        logging.StreamHandler(),  # Logs to the console
+        logging.FileHandler(LOG_DIR / "eversense-tray.log", mode="a")  # Logs to a file
+    ]
+)
+
 
 class GlucoseApp:
-    CONFIG_DIR = Path.home() / ".config" / "eversense-tray"
     CONFIG_FILE = CONFIG_DIR / "config.ini"
     DB_FILE = CONFIG_DIR / "glucose.db"
 
@@ -49,10 +69,9 @@ class GlucoseApp:
         self.indicator = None
         self.popup_window = None
         self.fetch_thread = None
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def load_or_create_config(self):
-        if not self.CONFIG_DIR.exists():
-            self.CONFIG_DIR.mkdir(parents=True)
         if self.CONFIG_FILE.exists():
             self.config.read(self.CONFIG_FILE)
         else:
@@ -65,7 +84,7 @@ class GlucoseApp:
                 username, password = dialog.get_credentials()
 
             elif response == Gtk.ResponseType.CANCEL:
-                print("[Config] Login cancelled, exiting")
+                self.logger.debug("[Config] Login cancelled, exiting")
                 sys.exit(0)
 
             dialog.destroy()
@@ -79,7 +98,7 @@ class GlucoseApp:
         with self.CONFIG_FILE.open("w") as f:
             self.config.write(f)
 
-        print(f"[Config] Saved credentials to {self.CONFIG_FILE}")
+        self.logger.debug(f"[Config] Saved credentials to {self.CONFIG_FILE}")
 
     def setup_tray(self):
         self.indicator = AppIndicator3.Indicator.new(
@@ -123,7 +142,7 @@ class GlucoseApp:
         )
 
         # Save the image to the icons directory
-        icons_dir = self.CONFIG_DIR / "icons"
+        icons_dir = CONFIG_DIR / "icons"
         icons_dir.mkdir(exist_ok=True)  # Ensure the directory exists
         icon_path = icons_dir / f"{color}-dot.png"
         image.save(icon_path)
@@ -136,8 +155,8 @@ class GlucoseApp:
         self.popup_window = self.create_graph_window()
         self.popup_window.show_all()
 
-    @classmethod
-    def on_quit(cls, _):
+    def on_quit(self, _):
+        self.logger.info("[Main] Exiting app")
         Gtk.main_quit()
         sys.exit(0)
 
@@ -220,7 +239,7 @@ class GlucoseApp:
                                  f"{self.current_glucose:.1f} mmol/L")
         color = self.glucose_color(self.current_glucose)
         self.update_tray_icon(color)
-        print(f"[Tray] Updated with glucose value: {self.current_glucose}, trend: {self.trend_arrow}, color: {color}")
+        self.logger.debug(f"[Tray] Updated with glucose value: {self.current_glucose}, trend: {self.trend_arrow}, color: {color}")
 
     def load_events(self):
         # Load last 24h glucose data from API
@@ -243,7 +262,7 @@ class GlucoseApp:
                         dt = datetime.datetime.fromisoformat(ts)
                         readings.append((dt.isoformat(), float(val)))
                 except Exception as e:
-                    print(f"[Parse] Error parsing event: {e}")
+                    self.logger.error(f"[Parse] Error parsing event: {e}")
             if readings:
                 self.db.add_readings(readings)
                 self.db.prune_old()
@@ -260,12 +279,12 @@ class GlucoseApp:
                 # Login + get user id if missing
                 if not self.client.access_token or self.user_id is None:
                     if not self.client.login():
-                        print("[FetchLoop] Login failed, retrying in 60s")
+                        self.logger.debug("[FetchLoop] Login failed, retrying in 60s")
                         time.sleep(60)
                         continue
                     self.user_id = self.client.fetch_user_id()
                     if self.user_id is None:
-                        print("[FetchLoop] Failed to get user ID, retrying in 60s")
+                        self.logger.debug("[FetchLoop] Failed to get user ID, retrying in 60s")
                         time.sleep(60)
                         continue
                     self.client.user_id = self.user_id
@@ -273,7 +292,7 @@ class GlucoseApp:
                 self.load_events()
 
             except Exception as e:
-                print(f"[FetchLoop] Error: {e}")
+                self.logger.error(f"[FetchLoop] Error: {e}")
             # Sleep with jitter
             time.sleep(self.FETCH_INTERVAL_SEC + random.uniform(-30, 30))
 
@@ -287,7 +306,7 @@ class GlucoseApp:
             window.add(label)
             return window
 
-        times = [x[0].replace(tzinfo=None) for x in data]
+        times = [x[0].astimezone(ZoneInfo("Europe/Stockholm")) for x in data]
         values = [x[1] for x in data]
 
         max_y = math.ceil(max(values))
@@ -307,10 +326,10 @@ class GlucoseApp:
         ax.set_title("Last 24 Hours Glucose (mmol/L)")
         ax.set_ylabel("Glucose (mmol/L)")
         ax.set_ylim(0, max_y)
-        ax.set_yticks(range(2, max_y + 1, 2))  # Labels every 2 units starting from 2
+        ax.set_yticks(range(2, max_y + 1, 1))
 
         ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m - %H:%M'))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m - %H:%M', tz=ZoneInfo("Europe/Stockholm")))
         fig.autofmt_xdate()
 
         # Convert matplotlib figure to GTK Pixbuf
@@ -331,7 +350,9 @@ class GlucoseApp:
         return window
 
     def run(self):
+        self.logger.info("[Main] Starting app")
         self.setup_tray()
         self.fetch_thread = threading.Thread(target=self.fetch_loop, daemon=True)
         self.fetch_thread.start()
+        self.logger.info("[Main] Fetch loop started")
         Gtk.main()

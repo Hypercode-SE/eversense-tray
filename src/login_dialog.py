@@ -9,7 +9,7 @@ class LoginDialog(Gtk.Dialog):
     EMAIL_REGEX = re.compile(r"^[^@]+@[^@]+\.[^@]+$")
 
     def __init__(self, parent=None):
-        super().__init__(title="GlucoTray Login", transient_for=parent, flags=0)
+        super().__init__(title="Eversense Tray Login", transient_for=parent, flags=0)
         self.set_modal(True)
         self.set_default_size(300, 100)
 

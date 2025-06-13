@@ -1,4 +1,5 @@
 import datetime
+import logging
 import time
 
 import requests
@@ -17,6 +18,7 @@ class EversenseClient:
         self.access_token = None
         self.token_expiry = 0
         self.user_id = None
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def login(self):
         data = {
@@ -34,15 +36,15 @@ class EversenseClient:
             token_data = resp.json()
             self.access_token = token_data["access_token"]
             self.token_expiry = time.time() + token_data.get("expires_in", 43200) - 60
-            print(f"[Login] Success, token expires in {token_data.get('expires_in', 43200)}s")
+            self.logger.debug(f"[Login] Success, token expires in {token_data.get('expires_in', 43200)}s")
             return True
         except Exception as e:
-            print(f"[Login] Failed: {e}")
+            self.logger.error(f"[Login] Failed: {e}")
             return False
 
     def ensure_token_valid(self):
         if not self.access_token or time.time() > self.token_expiry:
-            print("[Token] Expired or missing, re-login needed")
+            self.logger.debug("[Token] Expired or missing, re-login needed")
             if not self.login():
                 raise RuntimeError("Login failed, cannot refresh token")
 
@@ -54,10 +56,10 @@ class EversenseClient:
             resp.raise_for_status()
             user_data = resp.json()
             self.user_id = user_data.get("UserID")
-            print(f"[User] UserID fetched: {self.user_id}")
+            self.logger.debug(f"[User] UserID fetched: {self.user_id}")
             return self.user_id
         except Exception as e:
-            print(f"[User] Failed to fetch UserID: {e}")
+            self.logger.error(f"[User] Failed to fetch UserID: {e}")
             return None
 
     def fetch_glucose_data(self, from_dt: datetime.datetime, to_dt: datetime.datetime):
@@ -73,7 +75,7 @@ class EversenseClient:
             "startDate": from_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
             "endDate": to_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         }
-        print(f"[Glucose] Fetching glucose data from {from_dt} to {to_dt}")
+        self.logger.debug(f"[Glucose] Fetching glucose data from {from_dt} to {to_dt}")
         try:
             resp = requests.post(self.GLUCOSE_URL, headers=headers, json=json_data)
             resp.raise_for_status()
@@ -86,5 +88,5 @@ class EversenseClient:
                     event["EventDate"] = utc_time.isoformat()
             return data
         except Exception as e:
-            print(f"[Glucose] Fetch failed: {e}")
+            self.logger.error(f"[Glucose] Fetch failed: {e}")
             return None
