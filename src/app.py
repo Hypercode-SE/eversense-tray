@@ -178,22 +178,29 @@ class GlucoseApp:
 
     @classmethod
     def calculate_trend_arrow(cls, data_points):
-        # Calculate the rate of change mmol/L per 5 mins and assign arrow
-        # Use last 2 points if available
         if len(data_points) < 2:
             return "→"
-        v1 = data_points[-2][1]
-        v2 = data_points[-1][1]
-        delta = v2 - v1
-        rate = delta / 5  # mmol/L per minute approx
 
-        if rate >= 0.1:
+        # Use the earliest value at least 15 minutes before the last one
+        latest_time, latest_val = data_points[-1]
+        for i in range(len(data_points) - 2, -1, -1):
+            prev_time, prev_val = data_points[i]
+            delta_minutes = (latest_time - prev_time).total_seconds() / 60
+            if delta_minutes >= 15:
+                break
+        else:
+            return "→"  # Not enough spacing
+
+        delta_val = latest_val - prev_val
+        rate = delta_val / delta_minutes  # mmol/L per minute
+
+        if rate >= 0.167:
             return "↑↑"
-        elif rate >= 0.03:
+        elif rate >= 0.111:
             return "↑"
-        elif rate <= -0.1:
+        elif rate <= -0.167:
             return "↓↓"
-        elif rate <= -0.03:
+        elif rate <= -0.111:
             return "↓"
         else:
             return "→"
