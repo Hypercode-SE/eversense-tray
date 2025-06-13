@@ -1,0 +1,25 @@
+[project]
+name = "eversense-tray"
+version = "0.1.0"
+description = "A tray based eversense CGM tool for ubuntu"
+authors = [
+    {name = "Andréas Kühne",email = "andreas@kuhne.se"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "requests (>=2.32.4,<3.0.0)",
+    "pillow (>=11.2.1,<12.0.0)",
+    "matplotlib (>=3.10.3,<4.0.0)",
+    "notify2 (>=0.3.1,<0.4.0)",
+    "pandas (>=2.3.0,<3.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+pyinstaller = "^6.14.1"
