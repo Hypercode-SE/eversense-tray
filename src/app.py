@@ -332,6 +332,13 @@ class GlucoseApp:
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m - %H:%M', tz=ZoneInfo("Europe/Stockholm")))
         fig.autofmt_xdate()
 
+        # Add a twin y-axis with identical ticks and labels
+        ax_right = ax.twinx()  # Create a second y-axis
+        ax_right.set_yticks(ax.get_yticks())  # Set the same ticks as the left y-axis
+        ax_right.set_ylim(ax.get_ylim())  # Set the same limits as the left y-axis
+        ax_right.set_ylabel("Glucose (mmol/L)")  # Use the same label
+        ax_right.tick_params(axis='y', which='both', labelleft=False, labelright=True)  # Enable right-side labels
+
         # Convert matplotlib figure to GTK Pixbuf
         import io
         from PIL import Image
