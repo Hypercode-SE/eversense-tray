@@ -23,4 +23,4 @@ This should be run in the "/src" directory.
 
 You will then get an executable that you can copy on your system to a system wide place (`/usr/local/bin` for example).
 
-If you then copy the evensense-tray.desktop file into `~/.config/autostart/` it should start automatically when you login. 
+If you then copy the evensense-tray.desktop file into `~/.config/autostart/` it should start automatically when you login.

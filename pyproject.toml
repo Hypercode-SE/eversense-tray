@@ -1,3 +1,26 @@
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 119
+exclude = '''
+/(
+    | \.tox
+    | \.ini
+    | \.eggs
+    | \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+)/
+
+'''
+
 [project]
 name = "eversense-tray"
 version = "0.1.0"
@@ -23,3 +46,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.group.dev.dependencies]
 pyinstaller = "^6.14.1"
+pre-commit = "^4.2.0"

@@ -9,22 +9,26 @@ import time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from dbus.mainloop.glib import DBusGMainLoop
+
+DBusGMainLoop(set_as_default=True)
+
+import dbus
+import dbus.mainloop.glib
+import gi  # type: ignore
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import notify2
+import pandas as pd
 from PIL import Image, ImageDraw
 
 from eversense_client import EversenseClient
 from glucose_db import GlucoseDB
-import notify2
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import gi  # type: ignore
-
-import pandas as pd
-
 from login_dialog import LoginDialog
 
-gi.require_version('Gtk', '3.0')
-gi.require_version('AppIndicator3', '0.1')
-from gi.repository import Gtk, GLib, AppIndicator3, GdkPixbuf  # type: ignore
+gi.require_version("Gtk", "3.0")
+gi.require_version("AppIndicator3", "0.1")
+from gi.repository import AppIndicator3, GdkPixbuf, GLib, Gtk  # type: ignore
 
 CONFIG_DIR = Path.home() / ".config" / "eversense-tray"
 
@@ -41,8 +45,8 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # Format log messages
     handlers=[
         logging.StreamHandler(),  # Logs to the console
-        logging.FileHandler(LOG_DIR / "eversense-tray.log", mode="a")  # Logs to a file
-    ]
+        logging.FileHandler(LOG_DIR / "eversense-tray.log", mode="a"),  # Logs to a file
+    ],
 )
 
 
@@ -70,6 +74,38 @@ class GlucoseApp:
         self.popup_window = None
         self.fetch_thread = None
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.setup_dbus_listeners()
+
+    def setup_dbus_listeners(self):
+        try:
+            bus = dbus.SystemBus()
+            login_proxy = bus.get_object("org.freedesktop.login1", "/org/freedesktop/login1")
+            login_iface = dbus.Interface(login_proxy, "org.freedesktop.login1.Manager")
+            login_iface.connect_to_signal("PrepareForSleep", self.on_prepare_for_sleep)
+            self.logger.info("[DBus] Listening to PrepareForSleep")
+        except Exception as e:
+            self.logger.warning(f"[DBus] Failed to attach PrepareForSleep listener: {e}")
+
+        try:
+            session_bus = dbus.SessionBus()
+            screensaver_proxy = session_bus.get_object("org.gnome.ScreenSaver", "/org/gnome/ScreenSaver")
+            screensaver_iface = dbus.Interface(screensaver_proxy, "org.gnome.ScreenSaver")
+            screensaver_iface.connect_to_signal("ActiveChanged", self.on_active_changed)
+            self.logger.info("[DBus] Listening to ActiveChanged (GNOME)")
+        except Exception as e:
+            self.logger.warning(f"[DBus] Failed to attach ActiveChanged listener: {e}")
+
+    def on_prepare_for_sleep(self, going_to_sleep):
+        if not going_to_sleep:
+            self.logger.info("[DBus] System woke from sleep — refreshing glucose data.")
+            GLib.idle_add(self.update_tray, True)
+
+    def on_active_changed(self, is_active):
+        if not is_active:
+            self.logger.debug("[DBus] Screen locked")
+        else:
+            self.logger.info("[DBus] Screen unlocked — refreshing glucose data.")
+            GLib.idle_add(self.update_tray, True)
 
     def load_or_create_config(self):
         if self.CONFIG_FILE.exists():
@@ -102,9 +138,8 @@ class GlucoseApp:
 
     def setup_tray(self):
         self.indicator = AppIndicator3.Indicator.new(
-            "eversense-glucose-tray",
-            "dialog-information",
-            AppIndicator3.IndicatorCategory.APPLICATION_STATUS)
+            "eversense-glucose-tray", "dialog-information", AppIndicator3.IndicatorCategory.APPLICATION_STATUS
+        )
         self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
         self.indicator.set_menu(self.build_menu())
 
@@ -235,18 +270,28 @@ class GlucoseApp:
         else:
             return "green"
 
-    def update_tray(self):
+    def update_tray(self, refresh=False):
+        if refresh:
+            self.update_tray_icon("blue")
+            self.indicator.set_label("", "")
+            self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
+
         if self.current_glucose is None:
             self.indicator.set_label("---", "No data available")
             self.update_tray_icon("blue")
+            self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
             return
 
         # Set tray label and icon color based on glucose levels
-        self.indicator.set_label(f"{self.trend_arrow} {self.current_glucose:.1f} mmol/L",
-                                 f"{self.current_glucose:.1f} mmol/L")
+        self.indicator.set_label(
+            f"{self.trend_arrow} {self.current_glucose:.1f} mmol/L", f"{self.current_glucose:.1f} mmol/L"
+        )
+        self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
         color = self.glucose_color(self.current_glucose)
         self.update_tray_icon(color)
-        self.logger.debug(f"[Tray] Updated with glucose value: {self.current_glucose}, trend: {self.trend_arrow}, color: {color}")
+        self.logger.info(
+            f"[Tray] Updated with glucose value: {self.current_glucose}, trend: {self.trend_arrow}, color: {color}"
+        )
 
     def load_events(self):
         # Load last 24h glucose data from API
@@ -336,7 +381,7 @@ class GlucoseApp:
         ax.set_yticks(range(2, max_y + 1, 1))
 
         ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m - %H:%M', tz=ZoneInfo("Europe/Stockholm")))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m - %H:%M", tz=ZoneInfo("Europe/Stockholm")))
         fig.autofmt_xdate()
 
         # Add a twin y-axis with identical ticks and labels
@@ -344,14 +389,15 @@ class GlucoseApp:
         ax_right.set_yticks(ax.get_yticks())  # Set the same ticks as the left y-axis
         ax_right.set_ylim(ax.get_ylim())  # Set the same limits as the left y-axis
         ax_right.set_ylabel("Glucose (mmol/L)")  # Use the same label
-        ax_right.tick_params(axis='y', which='both', labelleft=False, labelright=True)  # Enable right-side labels
+        ax_right.tick_params(axis="y", which="both", labelleft=False, labelright=True)  # Enable right-side labels
 
         # Convert matplotlib figure to GTK Pixbuf
         import io
+
         from PIL import Image
 
         buf = io.BytesIO()
-        fig.savefig(buf, format='png')
+        fig.savefig(buf, format="png")
         buf.seek(0)
         pil_im = Image.open(buf)
         width, height = pil_im.size

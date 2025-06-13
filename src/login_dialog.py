@@ -1,6 +1,7 @@
 import re
 
-import gi   # type: ignore
+import gi  # type: ignore
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # type: ignore
 
@@ -66,7 +67,9 @@ class LoginDialog(Gtk.Dialog):
                 if self.is_valid():
                     return response
                 else:
-                    self.error_label.set_markup("<span foreground='red'>Please enter a valid email and password.</span>")
+                    self.error_label.set_markup(
+                        "<span foreground='red'>Please enter a valid email and password.</span>"
+                    )
                     continue
             return response
 
