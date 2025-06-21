@@ -1,8 +1,11 @@
 import datetime
 import logging
 import time
+from zoneinfo import ZoneInfo
 
 import requests
+
+STOCKHOLM = ZoneInfo("Europe/Stockholm")
 
 
 class EversenseClient:
@@ -66,7 +69,7 @@ class EversenseClient:
         self.ensure_token_valid()
         headers = {"Authorization": f"Bearer {self.access_token}"}
 
-        to_dt_end = to_dt.replace(hour=23, minute=59, second=59, microsecond=0)
+        to_dt_end = to_dt.astimezone(STOCKHOLM).replace(hour=23, minute=59, second=59, microsecond=999999)
         json_data = {
             "FromDateStr": from_dt.strftime("%Y-%m-%dT%H:%M:%S+02:00"),
             "ToDateStr": to_dt_end.strftime("%Y-%m-%dT%H:%M:%S+02:00"),
