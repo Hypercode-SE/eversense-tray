@@ -1,3 +1,4 @@
+import logging
 import re
 
 import gi  # type: ignore
@@ -11,6 +12,7 @@ class LoginDialog(Gtk.Dialog):
 
     def __init__(self, parent=None):
         super().__init__(title="Eversense Tray Login", transient_for=parent, flags=0)
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.set_modal(True)
         self.set_default_size(300, 100)
 
@@ -43,6 +45,7 @@ class LoginDialog(Gtk.Dialog):
         self.login_button = self.add_button("Login", Gtk.ResponseType.OK)
         self.login_button.set_sensitive(False)
 
+        self.logger.debug("[Dialog] Initialized")
         self.show_all()
 
     def on_input_changed(self, widget):

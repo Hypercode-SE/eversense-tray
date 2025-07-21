@@ -22,6 +22,7 @@ class EversenseClient:
         self.token_expiry = 0
         self.user_id = None
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.debug("[Init] EverSense client initialized")
 
     def login(self):
         data = {

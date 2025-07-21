@@ -74,6 +74,7 @@ class GlucoseApp:
         self.popup_window = None
         self.fetch_thread = None
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.debug("[GlucoseApp] App initialized")
         self.setup_dbus_listeners()
 
     def setup_dbus_listeners(self):
@@ -157,6 +158,7 @@ class GlucoseApp:
         menu.append(quit_item)
 
         menu.show_all()
+        self.update_tray(True)
         return menu
 
     def generate_dot_icon(self, color, diameter=32):

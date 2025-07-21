@@ -16,7 +16,7 @@ Then you need to create a python environment and install the dependencies:
 
 Finally if you want to create an executable for running on startup:
 ```bash
-  pyinstaller --onefile --noconfirm --clean --windowed app.py   --add-data "/usr/share/glib-2.0/schemas:usr/share/glib-2.0/schemas"   --add-data "/usr/share/icons:usr/share/icons"   --add-data "/usr/lib/x86_64-linux-gnu/gtk-3.0:usr/lib/x86_64-linux-gnu/gtk-3.0"
+  pyinstaller --onefile --noconfirm --clean --windowed main.py   --add-data "/usr/share/glib-2.0/schemas:usr/share/glib-2.0/schemas"   --add-data "/usr/share/icons:usr/share/icons"   --add-data "/usr/lib/x86_64-linux-gnu/gtk-3.0:usr/lib/x86_64-linux-gnu/gtk-3.0"
 ```
 
 This should be run in the "/src" directory.

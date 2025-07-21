@@ -11,6 +11,7 @@ class GlucoseDB:
         self._init_tables()
         self.lock = threading.Lock()
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.debug("[DB] Initialized")
 
     def _init_tables(self):
         with sqlite3.connect(self.db_file) as conn:
