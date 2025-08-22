@@ -382,6 +382,13 @@ class GlucoseApp:
         ax.set_ylim(0, max_y)
         ax.set_yticks(range(2, max_y + 1, 1))
 
+        y_min, y_max = ax.get_ylim()
+        ax.axhspan(y_min, self.LOW_THRESHOLD, facecolor="red", alpha=0.25, zorder=0)
+        ax.axhspan(self.LOW_THRESHOLD, self.NORMAL_THRESHOLD_MIN, facecolor="yellow", alpha=0.25, zorder=0)
+        ax.axhspan(self.NORMAL_THRESHOLD_MIN, self.NORMAL_THRESHOLD_MAX, facecolor="green", alpha=0.25, zorder=0)
+        ax.axhspan(self.NORMAL_THRESHOLD_MAX, self.HIGH_THRESHOLD, facecolor="yellow", alpha=0.25, zorder=0)
+        ax.axhspan(self.HIGH_THRESHOLD, y_max, facecolor="red", alpha=0.25, zorder=0)
+
         ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m - %H:%M", tz=ZoneInfo("Europe/Stockholm")))
         fig.autofmt_xdate()
