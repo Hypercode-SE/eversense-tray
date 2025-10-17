@@ -232,13 +232,13 @@ class GlucoseApp:
         rate = delta_val / delta_minutes  # mmol/L per minute
 
         if rate >= 0.167:
-            return "↑↑"
-        elif rate >= 0.111:
             return "↑"
+        elif rate >= 0.111:
+            return "↗"
         elif rate <= -0.167:
-            return "↓↓"
-        elif rate <= -0.111:
             return "↓"
+        elif rate <= -0.111:
+            return "↘"
         else:
             return "→"
 
