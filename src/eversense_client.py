@@ -71,10 +71,11 @@ class EversenseClient:
         headers = {"Authorization": f"Bearer {self.access_token}"}
 
         to_dt_end = to_dt.astimezone(STOCKHOLM).replace(hour=23, minute=59, second=59, microsecond=999999)
+        tz_offset_minutes = -int(to_dt_end.utcoffset().total_seconds() // 60)
         json_data = {
             "FromDateStr": from_dt.strftime("%Y-%m-%dT%H:%M:%S+02:00"),
             "ToDateStr": to_dt_end.strftime("%Y-%m-%dT%H:%M:%S+02:00"),
-            "TimeZoneOffset": -120,
+            "TimeZoneOffset": tz_offset_minutes,
             "UserID": self.user_id,
             "startDate": from_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
             "endDate": to_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
